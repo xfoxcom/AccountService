@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import javax.validation.Valid;
+import java.util.Locale;
 
 @RestController
 public class RestfulController {
@@ -18,10 +19,11 @@ public class RestfulController {
     private UserRepository userRepository;
     @PostMapping("api/auth/signup")
     public User signup (@RequestBody @Valid User user) {
-if (userRepository.existsByEmail(user.getEmail())) {
-    throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+if (userRepository.existsByEmailIgnoreCase(user.getEmail())) {
+    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User exist!");
 }
 user.setEnable(true);
+user.setEmail(user.getEmail().toLowerCase(Locale.ROOT));
 user.setPassword(new BCryptPasswordEncoder().encode(user.getPassword()));
 userRepository.save(user);
         return user;

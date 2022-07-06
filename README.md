@@ -1,2 +1,2 @@
 # AccountService
-Spring web, security, data app
+Spring web, security, data app.

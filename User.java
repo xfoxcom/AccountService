@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import javax.persistence.*;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.Pattern;
+import javax.validation.constraints.Size;
 
 @Data
 @NoArgsConstructor
@@ -26,6 +27,7 @@ public class User {
     @Pattern(regexp = ".+@acme.com")
     private String email;
     @NotEmpty
+    @Size(min = 12, message = "The password length must be at least 12 chars!")
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)

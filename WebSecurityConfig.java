@@ -33,8 +33,9 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     protected void configure (HttpSecurity http) throws Exception {
         http.authorizeRequests()
                 .antMatchers(HttpMethod.POST, "/api/auth/signup").permitAll()
-                .mvcMatchers("api/empl/payment").authenticated()
+                .mvcMatchers("api/acct/payments").permitAll()
                 .mvcMatchers("api/auth/changepass").authenticated()
+                .mvcMatchers("api/empl/payment").authenticated()
                 .and()
                 .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)

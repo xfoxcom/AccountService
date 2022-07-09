@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import javax.validation.Valid;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -40,11 +41,11 @@ user.setPassword(new BCryptPasswordEncoder(13).encode(user.getPassword()));
 userRepository.save(user);
         return user;
     }
-    @GetMapping("api/empl/payment")
+ /*   @GetMapping("api/empl/payment")
     public User testAuth (Authentication auth) {
         String email = auth.getName();
 return userRepository.findByEmailIgnoreCase(email);
-    }
+    }*/
     @PostMapping("api/auth/changepass")
     public ResponsePasswordChange changePassword (Authentication auth, @RequestBody newPassword newPassword) {
         if (newPassword.getNew_password().length() < 12) {
@@ -64,10 +65,22 @@ return new ResponsePasswordChange(auth.getName(), "The password has been updated
 
     @PostMapping("api/acct/payments")
     @Transactional
-    public ResponseEntity<Map<String, String>> addSalary (@RequestBody List<@Valid Employee> employees) {
+    public ResponseEntity<Map<String, String>> addSalary (@RequestBody List<Employee> employees) {
 
         for (Employee employee : employees) {
-
+            int month = Integer.parseInt(employee.getPeriod().split("-")[0]);
+if (!userRepository.existsByEmailIgnoreCase(employee.getEmployee())) {
+    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "We don't have this user!");
+}
+if (employeeRepository.existsByPeriodAndEmployee(employee.getPeriod(), employee.getEmployee())) {   // TODO: 09.07.2022 period and email
+    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Wrong date!");
+}
+if (employee.getSalary() < 0) {
+    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Salary must be non negative!");
+}
+if (month < 0 | month > 12) {
+    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Wrong date!");
+}
             employeeRepository.save(employee);
         }
 
@@ -76,15 +89,50 @@ return new ResponsePasswordChange(auth.getName(), "The password has been updated
 
     @PutMapping("api/acct/payments")
     public ResponseEntity<Map<String, String>> updateSalary (@RequestBody @Valid Employee employee) {
-        employeeRepository.save(employee);
+        if (!userRepository.existsByEmailIgnoreCase(employee.getEmployee())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
+        int month = Integer.parseInt(employee.getPeriod().split("-")[0]);
+        if (month < 0 | month > 12) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Wrong date!");
+        }
+        Employee worker = employeeRepository.findByPeriodAndEmployee(employee.getPeriod(), employee.getEmployee());
+        worker.setSalary(employee.getSalary());
+
+        employeeRepository.save(worker);
         return ResponseEntity.ok(Map.of("status", "Updated successfully!"));
     }
 
     @GetMapping("api/empl/payment")
-    public void getSalaryByPeriod (@RequestParam String period, Authentication auth) {
+    public List<ClassForPayrollResponse> getSalaryByPeriod (@RequestParam(required = false) String period, Authentication auth) {
+        List<ClassForPayrollResponse> list = new ArrayList<>();
+        if (period == null) {
+            User user = userRepository.findByEmailIgnoreCase(auth.getName());
+            List<Employee> employees = employeeRepository.findByEmployeeOrderByPeriodDesc(auth.getName());
 
-
-
-
+            for (Employee employee : employees) {
+                ClassForPayrollResponse classForPayrollResponse = new ClassForPayrollResponse();
+                classForPayrollResponse.setName(user.getName());
+                classForPayrollResponse.setLastname(user.getLastname());
+                classForPayrollResponse.setPeriod(employee.getPeriod());
+                classForPayrollResponse.setSalary(employee.getSalary());
+                list.add(classForPayrollResponse);
+            }
+            return list;
+        }
+        int month = Integer.parseInt(period.split("-")[0]);
+        if (month < 0 | month > 12) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Wrong date!");
+        }
+        String email = auth.getName();
+User user = userRepository.findByEmailIgnoreCase(email);
+Employee employee = employeeRepository.findByPeriodAndEmployee(period, email);
+ClassForPayrollResponse worker = new ClassForPayrollResponse();
+worker.setName(user.getName());
+worker.setLastname(user.getLastname());
+worker.setPeriod(period);
+worker.setSalary(employee.getSalary());
+list.add(worker);
+return list;
     }
 }

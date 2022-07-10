@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import javax.annotation.security.RolesAllowed;
 import javax.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,17 +36,23 @@ if (userRepository.existsByEmailIgnoreCase(user.getEmail())) {
 if (hackedPasswords.contains(user.getPassword())) {
     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The password is in the hacker's database!");
         }
+if (userRepository.count() == 0) {
+    List<String> roles = user.getRoles();
+    roles.add("ROLE_ADMINISTRATOR");
+    user.setAuthority(roles);
+} else {
+    List<String> roles = user.getRoles();
+    roles.add("ROLE_USER");
+    user.setAuthority(roles);
+}
 user.setEnable(true);
 user.setEmail(user.getEmail().toLowerCase(Locale.ROOT));
 user.setPassword(new BCryptPasswordEncoder(13).encode(user.getPassword()));
 userRepository.save(user);
         return user;
     }
- /*   @GetMapping("api/empl/payment")
-    public User testAuth (Authentication auth) {
-        String email = auth.getName();
-return userRepository.findByEmailIgnoreCase(email);
-    }*/
+
+    @RolesAllowed({"ROLE_USER", "ROLE_ACCOUNTANT", "ROLE_ADMINISTRATOR"})
     @PostMapping("api/auth/changepass")
     public ResponsePasswordChange changePassword (Authentication auth, @RequestBody newPassword newPassword) {
         if (newPassword.getNew_password().length() < 12) {
@@ -63,6 +70,7 @@ userRepository.save(user);
 return new ResponsePasswordChange(auth.getName(), "The password has been updated successfully");
     }
 
+    @RolesAllowed({"ROLE_ACCOUNTANT"})
     @PostMapping("api/acct/payments")
     @Transactional
     public ResponseEntity<Map<String, String>> addSalary (@RequestBody List<Employee> employees) {
@@ -88,6 +96,7 @@ if (month < 0 | month > 12) {
     }
 
     @PutMapping("api/acct/payments")
+    @RolesAllowed({"ROLE_ACCOUNTANT"})
     public ResponseEntity<Map<String, String>> updateSalary (@RequestBody @Valid Employee employee) {
         if (!userRepository.existsByEmailIgnoreCase(employee.getEmployee())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
@@ -103,6 +112,7 @@ if (month < 0 | month > 12) {
         return ResponseEntity.ok(Map.of("status", "Updated successfully!"));
     }
 
+    @RolesAllowed({"ROLE_USER", "ROLE_ACCOUNTANT"})
     @GetMapping("api/empl/payment")
     public List<ClassForPayrollResponse> getSalaryByPeriod (@RequestParam(required = false) String period, Authentication auth) {
         List<ClassForPayrollResponse> list = new ArrayList<>();
@@ -134,5 +144,21 @@ worker.setPeriod(period);
 worker.setSalary(employee.getSalary());
 list.add(worker);
 return list;
+    }
+
+    @GetMapping("api/admin/user")
+    @RolesAllowed({"ROLE_ADMINISTRATOR"})
+    public List<User> getAllUsers () {
+        return userRepository.findAll();
+    }
+    @DeleteMapping("/api/admin/user/{email}")
+    @RolesAllowed({"ROLE_ADMINISTRATOR"})
+    public void deleteUser (@PathVariable String email) {
+if (!userRepository.existsByEmailIgnoreCase(email)) {
+    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User not found!");
+}
+userRepository.deleteByEmail(email);
+
+
     }
 }

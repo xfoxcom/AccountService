@@ -17,6 +17,10 @@ import javax.sql.DataSource;
 @EnableWebSecurity
 public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
+    private final String rolesQuery = "select email, role CASE WHEN role = 'ROLE_ADMINISTRATOR' THEN 'ROLE_ADMINISTRATOR'" +
+            "WHEN role = 'ROLE_ACCOUNTANT' THEN 'ROLE_ACCOUNTANT'" +
+            " ELSE 'ROLE_USER' END FROM roles;";
+
     @Autowired
     private DataSource dataSource;
 
@@ -25,7 +29,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
         auth.jdbcAuthentication()
                 .dataSource(dataSource)
                 .usersByUsernameQuery("select email, password, 'true' as enable from users where email=lower(?)")
-                .authoritiesByUsernameQuery("select email, 'ROLE_USER' from users where email =?")
+                .authoritiesByUsernameQuery("select email, authority from users where email =?")
                 .passwordEncoder(new BCryptPasswordEncoder());
     }
 

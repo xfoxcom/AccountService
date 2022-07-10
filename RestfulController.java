@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import javax.annotation.security.RolesAllowed;
 import javax.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +28,15 @@ public class RestfulController {
     private UserRepository userRepository;
     @Autowired
     private employeeRepository employeeRepository;
+    @Autowired
+    private authoritiesRepository authoritiesRepository;
+
+    public RestfulController (UserRepository userRepository, employeeRepository employeeRepository, authoritiesRepository authoritiesRepository) {
+        this.userRepository = userRepository;
+        this.employeeRepository = employeeRepository;
+        this.authoritiesRepository = authoritiesRepository;
+    }
+
     @PostMapping("api/auth/signup")
     public User signup (@RequestBody @Valid User user) {
 if (userRepository.existsByEmailIgnoreCase(user.getEmail())) {
@@ -35,17 +45,33 @@ if (userRepository.existsByEmailIgnoreCase(user.getEmail())) {
 if (hackedPasswords.contains(user.getPassword())) {
     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The password is in the hacker's database!");
         }
+if (userRepository.count() == 0) {
+   // List<Authorities> roles = user.getRoles();
+   // Authorities authorities = new Authorities();
+   // authorities.setRole("ROLE_ADMINISTRATOR");
+  //  roles.add(authorities);
+    List<String> roles = user.getRoles();
+    roles.add("ROLE_ADMINISTRATOR");
+    user.setAuthority(roles);
+  //  authoritiesRepository.save(authorities);
+} else {
+   // List<Authorities> roles = user.getRoles();
+   // Authorities authorities = new Authorities();
+  //  authorities.setRole("ROLE_USER");
+  //  roles.add(authorities);
+    List<String> roles = user.getRoles();
+    roles.add("ROLE_USER");
+    user.setAuthority(roles);
+   // authoritiesRepository.save(authorities);
+}
 user.setEnable(true);
 user.setEmail(user.getEmail().toLowerCase(Locale.ROOT));
 user.setPassword(new BCryptPasswordEncoder(13).encode(user.getPassword()));
 userRepository.save(user);
         return user;
     }
- /*   @GetMapping("api/empl/payment")
-    public User testAuth (Authentication auth) {
-        String email = auth.getName();
-return userRepository.findByEmailIgnoreCase(email);
-    }*/
+
+    @RolesAllowed({"ROLE_USER", "ROLE_ACCOUNTANT", "ROLE_ADMINISTRATOR"})
     @PostMapping("api/auth/changepass")
     public ResponsePasswordChange changePassword (Authentication auth, @RequestBody newPassword newPassword) {
         if (newPassword.getNew_password().length() < 12) {
@@ -63,6 +89,7 @@ userRepository.save(user);
 return new ResponsePasswordChange(auth.getName(), "The password has been updated successfully");
     }
 
+    @RolesAllowed({"ROLE_ACCOUNTANT"})
     @PostMapping("api/acct/payments")
     @Transactional
     public ResponseEntity<Map<String, String>> addSalary (@RequestBody List<Employee> employees) {
@@ -88,6 +115,7 @@ if (month < 0 | month > 12) {
     }
 
     @PutMapping("api/acct/payments")
+    @RolesAllowed({"ROLE_ACCOUNTANT"})
     public ResponseEntity<Map<String, String>> updateSalary (@RequestBody @Valid Employee employee) {
         if (!userRepository.existsByEmailIgnoreCase(employee.getEmployee())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
@@ -103,6 +131,7 @@ if (month < 0 | month > 12) {
         return ResponseEntity.ok(Map.of("status", "Updated successfully!"));
     }
 
+    @RolesAllowed({"ROLE_USER", "ROLE_ACCOUNTANT"})
     @GetMapping("api/empl/payment")
     public List<ClassForPayrollResponse> getSalaryByPeriod (@RequestParam(required = false) String period, Authentication auth) {
         List<ClassForPayrollResponse> list = new ArrayList<>();
@@ -134,5 +163,79 @@ worker.setPeriod(period);
 worker.setSalary(employee.getSalary());
 list.add(worker);
 return list;
+    }
+
+    @GetMapping("api/admin/user")
+    @RolesAllowed({"ROLE_ADMINISTRATOR"})
+    public List<User> getAllUsers () {
+        return userRepository.findAll();
+    }
+    @DeleteMapping("/api/admin/user/{email}")
+    @RolesAllowed({"ROLE_ADMINISTRATOR"})
+    public Object deleteUser (@PathVariable String email) {
+if (!userRepository.existsByEmailIgnoreCase(email)) {
+    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User not found!");
+}
+if (userRepository.findByEmailIgnoreCase(email).getAuthority().equals("ROLE_ADMINISTRATOR")) {
+    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can't remove ADMINISTRATOR role!");
+}
+userRepository.deleteByEmail(email);
+class deleteResponse {
+    public String user;
+    public String status;
+    public deleteResponse (String user, String status) {
+        this.user = user;
+        this.status = status;
+    }
+}
+return new deleteResponse(email, "Deleted successfully!");
+    }
+    @PutMapping("api/admin/user/role")
+    @RolesAllowed({"ROLE_ADMINISTRATOR"})
+    public User putRole (@RequestBody putRequest putRequest) {
+        if (!userRepository.existsByEmailIgnoreCase(putRequest.getUser())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found!");
+        }
+        if (!putRequest.getRole().equals("ACCOUNTANT") & !putRequest.getRole().equals("USER")) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Role not found!");
+        }
+
+        if (putRequest.getOperation().equals("GRANT")) {
+            if (userRepository.findByEmailIgnoreCase(putRequest.getUser()).getAuthority().equals("ROLE_ADMINISTRATOR")) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user cannot combine administrative and business roles!");
+            }
+
+            User user = userRepository.findByEmailIgnoreCase(putRequest.getUser());
+           // Authorities authorities = new Authorities();
+         //   authorities.setRole(putRequest.getRole());
+         //   user.getRoles().add(authorities);
+            List<String> roles = userRepository.findByEmailIgnoreCase(putRequest.getUser()).getRoles();
+            roles.add(putRequest.getRole());
+            user.setAuthority(roles);
+          //  authoritiesRepository.save(authorities);
+            userRepository.save(user);
+            return user;
+        }
+
+        if (putRequest.getOperation().equals("REMOVE")) {
+           // Authorities authorities = new Authorities();
+          //  authorities.setRole(putRequest.getRole());
+            if (!userRepository.findByEmailIgnoreCase(putRequest.getUser()).getRoles().contains(putRequest.getRole())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user does not have a role!");
+            }
+            if (userRepository.findByEmailIgnoreCase(putRequest.getUser()).getRoles().size() == 1) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user must have at least one role!");
+            }
+            if (userRepository.findByEmailIgnoreCase(putRequest.getUser()).getAuthority().equals("ROLE_ADMINISTRATOR")) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can't remove ADMINISTRATOR role!");
+            }
+
+            User user = userRepository.findByEmailIgnoreCase(putRequest.getUser());
+            user.getRoles().remove(putRequest.getRole());
+            user.setAuthority(user.getRoles());
+            userRepository.save(user);
+            return user;
+        }
+        return new User();
     }
 }

@@ -1,16 +1,19 @@
 package account;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.DeserializationConfig;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.SortNatural;
+
 
 import javax.persistence.*;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Data
@@ -35,8 +38,7 @@ public class User {
     private String password;
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private boolean enable;
-    @SortNatural
-    @ElementCollection
+    @ElementCollection()
     private List<String> roles = new ArrayList<>();
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String authority;
@@ -44,5 +46,9 @@ public class User {
 
     public void setAuthority(List<String> roles) {
         this.authority = roles.get(0);
+    }
+
+    public void sortList () {
+        roles.sort(Comparator.naturalOrder());
     }
 }

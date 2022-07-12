@@ -12,6 +12,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+
 import javax.sql.DataSource;
 @Configuration
 @EnableWebSecurity
@@ -38,17 +39,20 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
         http.authorizeRequests()
                 .antMatchers(HttpMethod.POST, "/api/auth/signup").permitAll()
                 .mvcMatchers("api/acct/payments").permitAll()
+                .mvcMatchers("/api/admin/user/**").hasRole("ADMINISTRATOR")
+                .mvcMatchers("/api/acct/payments").hasRole("ACCOUNTANT")
                 .mvcMatchers("api/auth/changepass").authenticated()
                 .mvcMatchers("api/empl/payment").authenticated()
                 .and()
                 .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                .and()
+                .and().exceptionHandling().accessDeniedHandler((request, response, accessDeniedException) -> response.sendError(403, "Access Denied!")).and()
                 .csrf().disable().headers().frameOptions().disable().and().httpBasic();// no session
     }
     @Bean
     public PasswordEncoder encoder () {
         return new BCryptPasswordEncoder();
     }
+
 
 }

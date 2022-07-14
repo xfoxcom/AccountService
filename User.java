@@ -14,6 +14,7 @@ import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
 
 @Data
@@ -42,6 +43,12 @@ public class User {
     private List<String> roles = new ArrayList<>();
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String authority;
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private boolean locked;
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private int failedAttempt;
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private Date lockTime;
 
 
     public void setAuthority(List<String> roles) {

@@ -41,6 +41,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .mvcMatchers("api/acct/payments").permitAll()
                 .mvcMatchers("/api/admin/user/**").hasRole("ADMINISTRATOR")
                 .mvcMatchers("/api/acct/payments").hasRole("ACCOUNTANT")
+                .mvcMatchers("/api/security/events").hasRole("AUDITOR")
                 .mvcMatchers("api/auth/changepass").authenticated()
                 .mvcMatchers("api/empl/payment").authenticated()
                 .and()

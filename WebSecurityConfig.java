@@ -9,11 +9,21 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 
 
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.sql.DataSource;
+import java.io.IOException;
+
 @Configuration
 @EnableWebSecurity
 public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
@@ -24,6 +34,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
     @Autowired
     private DataSource dataSource;
+    @Autowired
+    private loggerController logger;
 
     @Override
     protected void configure (AuthenticationManagerBuilder auth) throws Exception {
@@ -47,13 +59,16 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .and()
                 .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                .and().exceptionHandling().accessDeniedHandler((request, response, accessDeniedException) -> response.sendError(403, "Access Denied!")).and()
-                .csrf().disable().headers().frameOptions().disable().and().httpBasic();// no session
+                .and()
+                .exceptionHandling().accessDeniedHandler((request, response, accessDeniedException) -> {
+            response.sendError(403, "Access Denied!");
+            logger.accessDenied(request.getUserPrincipal().getName(), request.getRequestURI());
+        }).and().csrf().disable().headers().frameOptions().disable().and().httpBasic().authenticationEntryPoint((request, response, authException) -> {
+            logger.loginFailed(request.getRemoteUser(), request.getRequestURI());
+        }); // TODO: 15.07.2022 lock user and brute force
     }
     @Bean
     public PasswordEncoder encoder () {
         return new BCryptPasswordEncoder();
     }
-
-
 }

@@ -75,19 +75,35 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
         }).and().csrf().disable().headers().frameOptions().disable().and().httpBasic().authenticationEntryPoint((request, response, authException) -> {
 
                     String encoded = request.getHeader("authorization");
-                    String emailAndPass = new String(Base64.decodeBase64(encoded.split(" ")[1].getBytes()));
-                    String email = emailAndPass.split(":")[0];
+                    if (encoded != null) {
 
-            User user = users.findByEmailIgnoreCase(email);
-            user.setFailedAttempt(user.getFailedAttempt() + 1);
-            if (user.getFailedAttempt() > 5) {
-                user.setLocked(true);
-                logger.bruteForce(email, request.getRequestURI());
-            } else {
-                users.save(user);
-                logger.loginFailed(email, request.getRequestURI());
-            }
-            response.sendError(401, "Unauthorized");
+
+                        String emailAndPass = new String(Base64.decodeBase64(encoded.split(" ")[1].getBytes()));
+                        String email = emailAndPass.split(":")[0];
+
+
+                        if (users.existsByEmailIgnoreCase(email)) {
+                            User user = users.findByEmailIgnoreCase(email);
+                            user.setFailedAttempt(user.getFailedAttempt() + 1);
+                            if (user.getFailedAttempt() >= 5) {
+                                user.setLocked(true);
+                                users.save(user);
+                                logger.loginFailed(email, request.getRequestURI());
+                                logger.bruteForce(email, request.getRequestURI());
+                                logger.lockUser(email, email,request.getRequestURI());
+                            } else {
+                                users.save(user);
+                                logger.loginFailed(email, request.getRequestURI());
+                            }
+                            response.sendError(401, "Unauthorized");
+                        } else {
+                            logger.loginFailed(email, request.getRequestURI());
+                            response.sendError(401, "Unauthorized");
+                        }
+                    }
+                    if (encoded == null) {
+                        response.sendError(401, "Unauthorized");
+                    }
 
         });
     }

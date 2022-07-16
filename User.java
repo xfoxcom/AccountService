@@ -57,9 +57,4 @@ public class User {
         roles.sort(Comparator.naturalOrder());
     }
 
-    public void checkAttempts () {
-        if (failedAttempt > MAX_ATTEMPT) this.setLocked(true);
-        this.setLocked(false);
-    }
-
 }

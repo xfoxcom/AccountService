@@ -79,6 +79,7 @@ if (hackedPasswords.contains(newPassword.getNew_password())) {
     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The password is in the hacker's database!");
 }
 User user = userRepository.findByEmailIgnoreCase(auth.getName());
+
 user.setPassword(encoder.encode(newPassword.getNew_password()));
 user.setFailedAttempt(0);
 userRepository.save(user);
@@ -91,6 +92,9 @@ return new ResponsePasswordChange(auth.getName(), "The password has been updated
     @Transactional
     public ResponseEntity<Map<String, String>> addSalary (@RequestBody(required = false) List<Employee> employees, Authentication auth) {
         User user = userRepository.findByEmailIgnoreCase(auth.getName());
+        if (user.isLocked()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User is locked!");
+        }
         user.setFailedAttempt(0);
         userRepository.save(user);
 
@@ -118,6 +122,9 @@ if (month < 0 | month > 12) {
     @RolesAllowed({"ROLE_ACCOUNTANT"})
     public ResponseEntity<Map<String, String>> updateSalary (@RequestBody @Valid Employee employee, Authentication auth) {
         User user = userRepository.findByEmailIgnoreCase(auth.getName());
+        if (user.isLocked()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User is locked!");
+        }
         user.setFailedAttempt(0);
         userRepository.save(user);
         if (!userRepository.existsByEmailIgnoreCase(employee.getEmployee())) {
@@ -138,6 +145,9 @@ if (month < 0 | month > 12) {
     @GetMapping("api/empl/payment")
     public <T> T getSalaryByPeriod (@RequestParam(required = false) String period, Authentication auth) {
         User user = userRepository.findByEmailIgnoreCase(auth.getName());
+        if (user.isLocked()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User account is locked");
+        }
         user.setFailedAttempt(0);
         userRepository.save(user);
         List<ClassForPayrollResponse> list = new ArrayList<>();
@@ -206,7 +216,7 @@ return new deleteResponse(email, "Deleted successfully!");
         if (!userRepository.existsByEmailIgnoreCase(putRequest.getUser())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found!");
         }
-        if (!putRequest.getRole().equals("ACCOUNTANT") & !putRequest.getRole().equals("USER") & !putRequest.getRole().equals("ADMINISTRATOR")) {
+        if (!putRequest.getRole().equals("ACCOUNTANT") & !putRequest.getRole().equals("USER") & !putRequest.getRole().equals("ADMINISTRATOR") & !putRequest.getRole().equals("AUDITOR") ) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Role not found!");
         }
 
@@ -225,7 +235,7 @@ return new deleteResponse(email, "Deleted successfully!");
             user.sortList();
             user.setAuthority(roles);
             userRepository.save(user);
-            logger.grant_role(auth.getName(), putRequest.getUser());
+            logger.grant_role(auth.getName(), putRequest.getUser(), putRequest.getRole());
             return user;
         }
 
@@ -246,7 +256,7 @@ return new deleteResponse(email, "Deleted successfully!");
             user.getRoles().remove("ROLE_" + putRequest.getRole());
             user.setAuthority(user.getRoles());
             userRepository.save(user);
-            logger.remove_role(auth.getName(), putRequest.getUser());
+            logger.remove_role(auth.getName(), putRequest.getUser(), putRequest.getRole());
             return user;
         }
         return new User();
@@ -264,13 +274,14 @@ return new deleteResponse(email, "Deleted successfully!");
             user.setLocked(true);
             userRepository.save(user);
             logger.lockUser(auth.getName(), operation.getUser(), "api/admin/user/access");
-            return Map.of("status", "User " + operation.getUser() + " locked!");
+            return Map.of("status", "User " + operation.getUser().toLowerCase(Locale.ROOT) + " locked!");
         }
         User user = userRepository.findByEmailIgnoreCase(operation.getUser());
         user.setLocked(false);
+        user.setFailedAttempt(0);
         userRepository.save(user);
         logger.unlockUser(auth.getName(), operation.getUser());
-        return Map.of("status", "User " + operation.getUser() + " unlocked!");
+        return Map.of("status", "User " + operation.getUser().toLowerCase(Locale.ROOT) + " unlocked!");
     }
     @GetMapping("/api/security/events")
     public List<eventField> getEvents () {

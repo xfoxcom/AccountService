@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.util.Locale;
 
 @Component
 public class loggerController {
@@ -37,36 +38,36 @@ public class loggerController {
 
         field.setDate(LocalDate.now());
         field.setAction("CHANGE_PASSWORD");
-        field.setSubject(email);
-        field.setObject(email);
+        field.setSubject(email.toLowerCase(Locale.ROOT));
+        field.setObject(email.toLowerCase(Locale.ROOT));
         field.setPath("/api/auth/changepass");
 
         events.save(field);
     }
 
-    public void grant_role (String emailSub, String emailObj) {
+    public void grant_role (String emailSub, String emailObj, String role) {
         logger.info("Role granted.");
 
         eventField field = new eventField();
 
         field.setDate(LocalDate.now());
         field.setAction("GRANT_ROLE");
-        field.setSubject(emailSub);
-        field.setObject("Grant role ACCOUNTANT to" + emailObj);
+        field.setSubject(emailSub.toLowerCase(Locale.ROOT));
+        field.setObject("Grant role " + role + " to " + emailObj.toLowerCase(Locale.ROOT));
         field.setPath("/api/admin/user/role");
 
         events.save(field);
     }
 
-    public void remove_role (String emailSub, String emailObj) {
+    public void remove_role (String emailSub, String emailObj, String role) {
         logger.info("Role removed.");
 
         eventField field = new eventField();
 
         field.setDate(LocalDate.now());
         field.setAction("REMOVE_ROLE");
-        field.setSubject(emailSub);
-        field.setObject("Remove role ACCOUNTANT to" + emailObj);
+        field.setSubject(emailSub.toLowerCase(Locale.ROOT));
+        field.setObject("Remove role " + role + " from " + emailObj.toLowerCase(Locale.ROOT));
         field.setPath("/api/admin/user/role");
 
         events.save(field);
@@ -79,7 +80,7 @@ public class loggerController {
 
         field.setDate(LocalDate.now());
         field.setAction("LOCK_USER");
-        field.setSubject(emailSub);
+        field.setSubject(emailSub.toLowerCase(Locale.ROOT));
         field.setObject("Lock user " + emailObj);
         field.setPath(path);
 
@@ -93,8 +94,8 @@ public class loggerController {
 
         field.setDate(LocalDate.now());
         field.setAction("UNLOCK_USER");
-        field.setSubject(emailSub);
-        field.setObject("Unlock user " + emailObj);
+        field.setSubject(emailSub.toLowerCase(Locale.ROOT));
+        field.setObject("Unlock user " + emailObj.toLowerCase(Locale.ROOT));
         field.setPath("/api/admin/user/access");
 
         events.save(field);
@@ -108,8 +109,8 @@ public class loggerController {
 
         field.setDate(LocalDate.now());
         field.setAction("DELETE_USER");
-        field.setSubject(emailSub);
-        field.setObject(emailObj);
+        field.setSubject(emailSub.toLowerCase(Locale.ROOT));
+        field.setObject(emailObj.toLowerCase(Locale.ROOT));
         field.setPath("/api/admin/user");
 
         events.save(field);
@@ -123,7 +124,7 @@ public class loggerController {
 
         field.setDate(LocalDate.now());
         field.setAction("LOGIN_FAILED");
-        field.setSubject(emailSub);
+        field.setSubject(emailSub.toLowerCase(Locale.ROOT));
         field.setObject(path);
         field.setPath(path);
 
@@ -137,7 +138,7 @@ public class loggerController {
 
         field.setDate(LocalDate.now());
         field.setAction("ACCESS_DENIED");
-        field.setSubject(emailSub);
+        field.setSubject(emailSub.toLowerCase(Locale.ROOT));
         field.setObject(path);
         field.setPath(path);
 
@@ -151,7 +152,7 @@ public class loggerController {
 
         field.setDate(LocalDate.now());
         field.setAction("BRUTE_FORCE");
-        field.setSubject(emailSub);
+        field.setSubject(emailSub.toLowerCase(Locale.ROOT));
         field.setObject(path);
         field.setPath(path);
 

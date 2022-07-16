@@ -58,6 +58,7 @@ if (userRepository.count() == 0) {
 }
 user.setEnable(true);
 user.setLocked(false);
+user.setFailedAttempt(0);
 user.setEmail(user.getEmail().toLowerCase(Locale.ROOT));
 user.setPassword(new BCryptPasswordEncoder(13).encode(user.getPassword()));
 userRepository.save(user);
@@ -79,6 +80,7 @@ if (hackedPasswords.contains(newPassword.getNew_password())) {
 }
 User user = userRepository.findByEmailIgnoreCase(auth.getName());
 user.setPassword(encoder.encode(newPassword.getNew_password()));
+user.setFailedAttempt(0);
 userRepository.save(user);
 logger.change_password(auth.getName());
 return new ResponsePasswordChange(auth.getName(), "The password has been updated successfully");
@@ -87,14 +89,17 @@ return new ResponsePasswordChange(auth.getName(), "The password has been updated
     @RolesAllowed({"ROLE_ACCOUNTANT"})
     @PostMapping("api/acct/payments")
     @Transactional
-    public ResponseEntity<Map<String, String>> addSalary (@RequestBody(required = false) List<Employee> employees) {
+    public ResponseEntity<Map<String, String>> addSalary (@RequestBody(required = false) List<Employee> employees, Authentication auth) {
+        User user = userRepository.findByEmailIgnoreCase(auth.getName());
+        user.setFailedAttempt(0);
+        userRepository.save(user);
 
         for (Employee employee : employees) {
             int month = Integer.parseInt(employee.getPeriod().split("-")[0]);
 if (!userRepository.existsByEmailIgnoreCase(employee.getEmployee())) {
     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "We don't have this user!");
 }
-if (employeeRepository.existsByPeriodAndEmployee(employee.getPeriod(), employee.getEmployee())) {   // TODO: 09.07.2022 period and email
+if (employeeRepository.existsByPeriodAndEmployee(employee.getPeriod(), employee.getEmployee())) {
     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Wrong date!");
 }
 if (employee.getSalary() < 0) {
@@ -111,7 +116,10 @@ if (month < 0 | month > 12) {
 
     @PutMapping("api/acct/payments")
     @RolesAllowed({"ROLE_ACCOUNTANT"})
-    public ResponseEntity<Map<String, String>> updateSalary (@RequestBody @Valid Employee employee) {
+    public ResponseEntity<Map<String, String>> updateSalary (@RequestBody @Valid Employee employee, Authentication auth) {
+        User user = userRepository.findByEmailIgnoreCase(auth.getName());
+        user.setFailedAttempt(0);
+        userRepository.save(user);
         if (!userRepository.existsByEmailIgnoreCase(employee.getEmployee())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
@@ -129,11 +137,12 @@ if (month < 0 | month > 12) {
     @RolesAllowed({"ROLE_USER", "ROLE_ACCOUNTANT"})
     @GetMapping("api/empl/payment")
     public <T> T getSalaryByPeriod (@RequestParam(required = false) String period, Authentication auth) {
+        User user = userRepository.findByEmailIgnoreCase(auth.getName());
+        user.setFailedAttempt(0);
+        userRepository.save(user);
         List<ClassForPayrollResponse> list = new ArrayList<>();
         if (period == null) {
-            User user = userRepository.findByEmailIgnoreCase(auth.getName());
             List<Employee> employees = employeeRepository.findByEmployeeOrderByPeriodDesc(auth.getName());
-
             for (Employee employee : employees) {
                 ClassForPayrollResponse classForPayrollResponse = new ClassForPayrollResponse();
                 classForPayrollResponse.setName(user.getName());
@@ -149,7 +158,6 @@ if (month < 0 | month > 12) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Wrong date!");
         }
         String email = auth.getName();
-User user = userRepository.findByEmailIgnoreCase(email);
 Employee employee = employeeRepository.findByPeriodAndEmployee(period, email);
 ClassForPayrollResponse worker = new ClassForPayrollResponse();
 worker.setName(user.getName());
@@ -168,6 +176,9 @@ return (T) worker;
     @DeleteMapping("/api/admin/user/{email}")
     //@RolesAllowed({"ROLE_ADMINISTRATOR"})
     public Object deleteUser (@PathVariable String email, Authentication auth) {
+        User user = userRepository.findByEmailIgnoreCase(auth.getName());
+        user.setFailedAttempt(0);
+        userRepository.save(user);
 if (!userRepository.existsByEmailIgnoreCase(email)) {
     throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found!");
 }
@@ -189,6 +200,9 @@ return new deleteResponse(email, "Deleted successfully!");
     @PutMapping("api/admin/user/role")
     @RolesAllowed({"ROLE_ADMINISTRATOR"})
     public User putRole (@RequestBody putRequest putRequest, Authentication auth) {
+        User user1 = userRepository.findByEmailIgnoreCase(auth.getName());
+        user1.setFailedAttempt(0);
+        userRepository.save(user1);
         if (!userRepository.existsByEmailIgnoreCase(putRequest.getUser())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found!");
         }
@@ -239,6 +253,9 @@ return new deleteResponse(email, "Deleted successfully!");
     }
     @PutMapping("api/admin/user/access")
     public Map<String, String> lockOrUnlockUser (@RequestBody userOperationRequest operation, Authentication auth) {
+        User user1 = userRepository.findByEmailIgnoreCase(auth.getName());
+        user1.setFailedAttempt(0);
+        userRepository.save(user1);
         if (userRepository.findByEmailIgnoreCase(operation.getUser()).getAuthority().equals("ROLE_ADMINISTRATOR")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can't lock the ADMINISTRATOR!");
         }

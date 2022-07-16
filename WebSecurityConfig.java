@@ -1,5 +1,6 @@
 package account;
 
+import org.apache.tomcat.util.codec.binary.Base64;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,6 +12,7 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -23,6 +25,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.sql.DataSource;
 import java.io.IOException;
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
@@ -36,6 +39,12 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     private DataSource dataSource;
     @Autowired
     private loggerController logger;
+    @Autowired
+    private UserRepository users;
+
+    public WebSecurityConfig (UserRepository users) {
+        this.users = users;
+    }
 
     @Override
     protected void configure (AuthenticationManagerBuilder auth) throws Exception {
@@ -64,8 +73,23 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
             response.sendError(403, "Access Denied!");
             logger.accessDenied(request.getUserPrincipal().getName(), request.getRequestURI());
         }).and().csrf().disable().headers().frameOptions().disable().and().httpBasic().authenticationEntryPoint((request, response, authException) -> {
-            logger.loginFailed(request.getRemoteUser(), request.getRequestURI());
-        }); // TODO: 15.07.2022 lock user and brute force
+
+                    String encoded = request.getHeader("authorization");
+                    String emailAndPass = new String(Base64.decodeBase64(encoded.split(" ")[1].getBytes()));
+                    String email = emailAndPass.split(":")[0];
+
+            User user = users.findByEmailIgnoreCase(email);
+            user.setFailedAttempt(user.getFailedAttempt() + 1);
+            if (user.getFailedAttempt() > 5) {
+                user.setLocked(true);
+                logger.bruteForce(email, request.getRequestURI());
+            } else {
+                users.save(user);
+                logger.loginFailed(email, request.getRequestURI());
+            }
+            response.sendError(401, "Unauthorized");
+
+        });
     }
     @Bean
     public PasswordEncoder encoder () {

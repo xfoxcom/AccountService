@@ -23,6 +23,7 @@ import java.util.List;
 @Entity
 @Table(name = "users")
 public class User {
+    private final static int MAX_ATTEMPT = 5;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
@@ -47,9 +48,6 @@ public class User {
     private boolean locked;
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private int failedAttempt;
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    private Date lockTime;
-
 
     public void setAuthority(List<String> roles) {
         this.authority = roles.get(0);
@@ -58,4 +56,10 @@ public class User {
     public void sortList () {
         roles.sort(Comparator.naturalOrder());
     }
+
+    public void checkAttempts () {
+        if (failedAttempt > MAX_ATTEMPT) this.setLocked(true);
+        this.setLocked(false);
+    }
+
 }
